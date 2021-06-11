@@ -1,0 +1,61 @@
+-- 6394
+set @tariffId = 6394;
+
+delete from Ftariff_Ext
+where rowid = @tariffId;
+
+delete from RateDetail
+where record_number = @tariffId;
+
+update from Ftariff
+set nextreplacement_rec = 0
+where nextreplacement_rec = @tariffId;
+
+delete from GRI_Tariff
+where newTariffId = @tariffId;
+
+delete from Ftariff
+where rowid = @tariffId;
+
+-- reset the GRI to re-run for ones that I have fixed records for
+update GRI_Header
+set startProcessTime = null, processedTime = null
+where id = 9;
+
+
+
+
+
+-- remove tariffs created for gri processed
+-- set the expiration date properly so that the original rate is still effective and will be picked up by the gri
+-- after running this, re-run gri, if you need to, you can delete multiple gris and then re-process them all in order to correct the chain
+
+use fp_ACEN;
+
+set @griHeaderId = 9; 
+set @newExpires = '2022-04-30';
+
+delete from Ftariff_Ext
+where rowid in (select rowid from Ftariff where prev_ftariff_rec_no in (select tariffId from GRI_Tariff where griRateId in (select id from GRI_Rate where griHeaderId = @griHeaderId)));
+
+delete from RateDetail
+where record_number in (select rowid from Ftariff where prev_ftariff_rec_no in (select tariffId from GRI_Tariff where griRateId in (select id from GRI_Rate where griHeaderId = @griHeaderId)));
+
+delete from Ftariff
+where prev_ftariff_rec_no in (select tariffId from GRI_Tariff where griRateId in (select id from GRI_Rate where griHeaderId = @griHeaderId));
+
+update Ftariff
+set nextreplacement_rec = '', expires = @newExpires
+where nextreplacement_rec in (select newTariffId from GRI_Tariff where griRateId in (select id from GRI_Rate where griHeaderId = @griHeaderId));
+
+delete from GRI_Tariff
+where griRateId in (select id from GRI_Rate where griHeaderId = @griHeaderId);
+
+update GRI_Header
+set startProcessTime = null, processedTime = null
+where id = @griHeaderId;
+
+update Ftariff
+set created_by = 'updateACEN',
+quoted_by = ''
+where created_by = 'morganACEN';
