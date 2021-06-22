@@ -12,5 +12,5 @@ LEFT OUTER JOIN attr_data AT
     AND AT.attribute_name = 'SALESPER'
 LEFT OUTER JOIN Salesperson S
     ON AT.value = S.uid
-WHERE F.account_type in ('G', 'C')
+WHERE F.account_type in ('G', 'C');
 
